@@ -10,7 +10,7 @@
 ;   :12020000A910A203A90385108DF000641080FEB21060BC
 ;   :070310003412341241420ACD
 ;   :00000001FF
-
+een foutje
 #define VAL     $1234
 
 zp      .equ    $10
@@ -32,4 +32,5 @@ fwd     .equ    $F0
 table   .byte   <VAL, >VAL      ; 34 12
         .word   VAL             ; 34 12
         .text   "AB\n"          ; 41 42 0A
+		.byte   ';'
         .end

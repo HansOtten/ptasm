@@ -1,0 +1,4 @@
+fwd            00F0
+start          0200
+table          0310
+zp             0010

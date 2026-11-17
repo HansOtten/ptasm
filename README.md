@@ -15,6 +15,10 @@ Install Free Pascal (2.6 or later) and compile the single source file:
 
     fpc ptasm.pas
 
+or open `ptasm.lpi` in Lazarus and build it as a simple program
+(this uses `ptasm.lpr`, the same source with the licence header and
+the Windows resource file `ptasm.res`).
+
 ## Usage
 
     ptasm -65 [-options ...] src_file [obj_file [lst_file [exp_file [sym_file]]]]
@@ -35,7 +39,13 @@ See the full manual for details and the list of unsupported TASM32 features.
 
 | File | Contents |
 |------|----------|
-| `ptasm.pas` | Source code |
+| `ptasm.pas` | Source code (build with `fpc`) |
+| `ptasm.lpr`, `ptasm.lpi`, `ptasm.res` | Lazarus project: source, project file, resources |
 | `ptasm.txt` | User manual (text) |
 | `ptasm.htm` | User manual (HTML) |
-| `ptest.asm` | Test source |
+| `ptest.asm` | Test source (contains a deliberate error line) |
+| `ptest.lst`, `ptest.obj`, `ptest.ihex`, `ptest.ee`, `ptest.sym` | Output from assembling `ptest.asm` |
+
+## License
+
+MIT, see [LICENSE](LICENSE).

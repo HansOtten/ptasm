@@ -61,6 +61,7 @@ at the start of an expression selects the low or high byte of the value of the
 whole expression: <code>LDA #&lt;TABLE</code>, <code>LDA #&gt;TABLE</code>,
 <code>.BYTE &lt;MSG, &gt;MSG</code>. TASM32 only knows <code>&lt;</code> and
 <code>&gt;</code> as comparisons. See Expressions.</li>
+<li> ';' is allowed in expressions</li>
 <li><b>MOS paper tape end record.</b> The last record holds the number of data
 records and its checksum, <code>;00nnnncccc</code>, as the KIM-1 and other MOS
 loaders expect. TASM32 writes only <code>;00</code>.</li>

@@ -1,4 +1,4 @@
-# Free Pascal build output
+# Free Pascal / Lazarus build output
 /ptasm
 /ptasm.exe
 *.o
@@ -8,9 +8,5 @@
 backup/
 lib/
 
-# Assembler output from test runs
-*.obj
-*.hex
-*.lst
-*.exp
-*.sym
+# Lazarus per-user editor session
+*.lps
