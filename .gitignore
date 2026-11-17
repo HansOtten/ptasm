@@ -1,0 +1,16 @@
+# Free Pascal build output
+/ptasm
+/ptasm.exe
+*.o
+*.ppu
+*.a
+*.compiled
+backup/
+lib/
+
+# Assembler output from test runs
+*.obj
+*.hex
+*.lst
+*.exp
+*.sym

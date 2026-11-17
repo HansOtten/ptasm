@@ -1,0 +1,582 @@
+PTASM User Manual
+=================
+
+PTASM 6502/65C02 Assembler, version 1.0
+A portable replacement for TASM32 (the Telemark Assembler) for the 6502
+family, written in Pascal.
+
+CONTENTS
+--------
+
+  - Introduction
+  - Differences from TASM32
+  - Building PTASM
+  - Invocation
+  - Environment variables
+  - Exit codes
+  - Source file format
+  - Expressions
+  - Assembler directives
+  - 6502 and 65C02 instructions
+  - Object file formats
+  - Listing file format
+  - Symbol and export files
+  - Error messages
+  - Limitations
+
+INTRODUCTION
+------------
+
+PTASM is a two pass cross assembler for the 6502 and 65C02 microprocessors.
+It reads the same source files and accepts the same command line as TASM32
+with the 6502 table (tasm -65), so existing TASM sources and build scripts
+keep working.
+
+TASM32 is a Windows program driven by instruction set tables read at run
+time. PTASM is one small standalone program with the 6502 and 65C02
+instruction sets built in, so no TASM65.TAB file is needed. It is written in
+plain (non-object) Pascal and compiles with Free Pascal, so it runs on every
+system Free Pascal supports: Windows, Linux, macOS, the BSDs, Raspberry Pi
+and more.
+
+PTASM produces Intel hex or MOS Technology paper tape object files, a
+listing file with an optional label table and hex table, a symbol file and
+an export file.
+
+DIFFERENCES FROM TASM32
+-----------------------
+
+Additions and fixes
+
+  - Low and high byte operators. A < or > at the start of an expression
+    selects the low or high byte of the value of the whole expression: LDA
+    #<TABLE, LDA #>TABLE, .BYTE <MSG, >MSG. TASM32 only knows < and > as
+    comparisons. See Expressions.
+  - MOS paper tape end record. The last record holds the number of data
+    records and its checksum, ;00nnnncccc, as the KIM-1 and other MOS
+    loaders expect. TASM32 writes only ;00.
+  - No zero page phase errors. If an operand refers to a label that is
+    defined later, pass 1 has to assume absolute addressing. PTASM remembers
+    this and keeps absolute addressing in pass 2, so the code size does not
+    change between the passes. TASM32 switches to zero page in pass 2 and
+    reports "Label value misaligned".
+  - Automatic 8 bit conversion. Where a byte is needed (immediate operand,
+    .BYTE) the low byte of the 16 bit value is used without a message. The
+    TASM32 check "Unused data in MS byte of argument" is still available
+    with -a2 (or -a).
+  - A semicolon inside a character constant (CMP #';') or a string is not
+    taken as the start of a comment.
+  - A backslash in a comment does not split the line.
+  - The title set with .TITLE also appears on the first page of a paged
+    listing.
+  - SET may also create a new label.
+  - Directives are also accepted without the leading dot (ORG, BYTE, EQU and
+    so on).
+  - An instruction without an operand that only has an accumulator form
+    (ASL, LSR, ROL, ROR) assembles as accumulator mode.
+  - 65C02 instructions used without -x give a clear message: "Instruction
+    needs 65C02 instructions (-x3)".
+  - -t65c02 selects the 6502 table with the 65C02 extensions enabled (same
+    as -65 -x3).
+
+Not supported
+
+  - Other processors: only the 6502 table (-65) is available.
+  - Binary, Motorola hex and Intel word address object formats (-b, -g2,
+    -g3, -g4).
+  - The ADDINSTR directive (PTASM has no instruction tables).
+  - The TASMTABS and TASMERRFORMAT environment variables.
+  - The assembly checks -a1 (illegal indirection) and -a8 (non-unary
+    operator at start of expression) are accepted but do nothing.
+
+BUILDING PTASM
+--------------
+
+Install Free Pascal (fpc, version 2.6 or later) and compile the single
+source file:
+
+    fpc ptasm.pas
+
+This produces ptasm (ptasm.exe on Windows). The program uses only the System
+and Dos units.
+
+INVOCATION
+----------
+
+    ptasm -65 [-options ...] src_file [obj_file [lst_file [exp_file [sym_file]]]]
+
+Run without arguments, PTASM prints a short summary of the options. Options
+and file names may be given in any order. Each option starts with a dash.
+The table option -65 may be omitted; the 6502 table is the default.
+
+  Option             Description
+  ------------------------------
+  -65, -t65, -t6502  6502 instruction set (default)
+  -t65c02            6502 instruction set with the 65C02 extensions (as -65
+                     -x3)
+  -a[mask]           Assembly checks, mask in hex (see below)
+  -c                 Object file written as one contiguous block
+  -dname[=value]     Define a macro, as #DEFINE name value
+  -e                 Show source lines after macro expansion in the listing
+  -fXX               Fill the memory image with byte XX (hex) before
+                     assembly
+  -g0                Intel hex object file (default)
+  -g1                MOS Technology paper tape object file (same as -m)
+  -h                 Hex table of the object code at the end of the listing
+  -i                 Ignore case in labels
+  -l[al]             Label table in the listing; a = all labels including
+                     local ones, l = long form
+  -m                 MOS Technology paper tape object file
+  -oXX               Bytes per object record, in hex (default 18 = 24 bytes)
+  -p[n]              Page the listing, n lines per page (default 60)
+  -q                 Quiet: no listing file, unless the source contains
+                     .LIST
+  -s                 Write a symbol table file
+  -x[mask]           Enable extended instructions, mask in hex (see below)
+  -y                 Show the time taken by the assembly
+
+Default file names are made from the source file name with the extension
+changed to .obj, .lst, .exp and .sym. If the source extension is in upper
+case (TEST.ASM) the generated extensions are upper case too.
+
+When both -m and -g are given, the last one counts.
+
+-a Assembly checks
+
+  Bit  Option  Default  Check
+  ---------------------------
+  1    -a2     off      Unused data in MS byte: a byte operand whose high
+                        byte is not zero
+  2    -a4     on       Duplicate labels
+
+-a without a mask enables all checks. Note that in TASM32 the unused data
+check is on by default; in PTASM it is off, so 16 bit values are converted
+to 8 bits silently.
+
+-x Extended instructions
+
+  Mask     Instructions enabled
+  -----------------------------
+  1        NMOS 6502 only (default)
+  3        6502 + 65C02 (Rockwell R65C02, including BBR, BBS, RMB, SMB)
+  5        6502 + R65C00/21 (BRA, PHX, PHY, PLX, PLY, BBR, BBS, RMB, SMB,
+           MUL)
+  7 or -x  All of the above
+
+Examples
+
+    ptasm -65 monitor.asm                 Intel hex monitor.obj, listing monitor.lst
+    ptasm -65 -m -l kim.asm kim.pap       MOS paper tape kim.pap, label table in kim.lst
+    ptasm -65 -x3 -s -c -fFF rom.asm      65C02, symbol file, contiguous block filled with FF
+
+ENVIRONMENT VARIABLES
+---------------------
+
+TASMOPTS holds options that are used every time, before the options on the
+command line, for example:
+
+    set TASMOPTS=-65 -m          (Windows)
+    export TASMOPTS="-65 -m"     (Linux, macOS)
+
+EXIT CODES
+----------
+
+  Code  Meaning
+  -------------
+  0     Normal completion, no assembly errors
+  1     Normal completion, with assembly errors
+  2     Abnormal completion, label table overflow
+  3     Abnormal completion, file access error
+  4     Abnormal completion, general error (bad option)
+
+SOURCE FILE FORMAT
+------------------
+
+    label  operation  operand  comment
+
+All fields are optional. Fields are separated by spaces or tabs. A source
+line may be up to 255 characters long.
+
+Label field
+
+A line that starts with a letter (or the local label character, default _)
+in column one starts with a label. The label ends at a space, tab or :.
+Labels may contain letters, digits, underscores and periods, at most 32
+characters, and are case sensitive unless -i is used. A label gets the value
+of the location counter, except on EQU, SET and ORG lines.
+
+Operation field
+
+An instruction mnemonic or a directive. It may start in any column except
+the first and is not case sensitive.
+
+Operand field
+
+The operand of the instruction or directive (see 6502 and 65C02
+instructions).
+
+Comment field
+
+A comment starts with a semicolon and runs to the end of the line. A line
+may be a comment only.
+
+Multiple statements per line
+
+A backslash separates statements on one line. The character after the
+backslash counts as column one of a new line, so put a space after the
+backslash unless a label follows:
+
+            lda  byte1\ sta byte1+4\ lda byte2\ sta byte2+4
+
+EXPRESSIONS
+-----------
+
+Expressions are made of labels, constants, the location counter, operators
+and parentheses. The result is a 16 bit value. Where a byte is needed, the
+low byte is used.
+
+Numeric constants
+
+  Radix  Suffix        Prefix  Example
+  ------------------------------------
+  2      B or b        %       01011000b, %01011000
+  8      O, o, Q or q  @       177400o, @177400
+  10     D, d or none          100, 100d
+  16     H or h        $       1234H, $1234
+
+A number with a suffix must start with a digit: write 0F800H, not F800H.
+
+Character constants
+
+One character between single quotes: 'A' has the value 65.
+
+Location counter
+
+$ or * stands for the address of the current statement. A $ followed by a
+hex digit is a hex number.
+
+Operators
+
+  Operator            Meaning
+  ---------------------------
+  + -                 Addition, subtraction
+  * / %               Multiplication, division, modulo
+  << >>               Shift left, shift right
+  & | ^               Binary and, or, exclusive or
+  = == != < > <= >=   Comparisons, give 1 (true) or 0 (false)
+  - ~ (unary)         Negation, one's complement
+  < > (at the start)  Low byte, high byte of the whole expression
+
+As in TASM there is no operator precedence: expressions are evaluated
+strictly from left to right, so 1+2*3 is 9. Use parentheses: 1+(2*3).
+
+Low and high byte
+
+A < or > as the first character of an expression (after #, after an opening
+parenthesis, or as a data item) selects the low or high byte of everything
+that follows it in that expression:
+
+            lda  #<table         ; low byte of table
+            ldx  #>table         ; high byte of table
+            lda  #>table+1       ; high byte of (table+1)
+            lda  #(>table)+1     ; (high byte of table) + 1
+            .byte <msg, >msg     ; address of msg, low byte first
+
+Anywhere else < and > are the comparison operators, as in TASM. The TASM
+style #label&$FF and #label/256 still work.
+
+ASSEMBLER DIRECTIVES
+--------------------
+
+Directives start with a period (the period may be omitted). The C
+preprocessor style directives start with # and cannot have a label.
+
+  Directive                            Description
+  ------------------------------------------------
+  [label] .BLOCK expr                  Advance the location counter by expr
+                                       bytes without assigning values
+  .BSEG .CSEG .DSEG .NSEG .XSEG        Select the segment shown in an AVSYM
+                                       symbol file (B, C, D, N, X). No
+                                       effect on code
+  [label] .BYTE expr|"string" [,...]   Bytes; strings give one byte per
+                                       character. .DB is the same
+  [label] .CHK addr                    Store the 8 bit sum of all bytes from
+                                       addr up to here
+  .CODES / .NOCODES                    Turn line numbers, addresses and code
+                                       in the listing on or off
+  .ECHO "string" | expr                Write a string (with escapes) or a
+                                       value (decimal) to the console
+                                       (stderr)
+  .EJECT                               Start a new listing page (when paging
+                                       is on)
+  [label] .END [addr]                  End of the source. The address is
+                                       ignored
+  label .EQU expr / label = expr       Give label the value of expr
+  [label] .EXPORT label [,label...]    Write these labels to the export file
+  [label] .FILL count [,value]         count bytes of value (default $FF)
+  .LIST / .NOLIST                      Turn the listing on or off
+  .LOCALLABELCHAR "c"                  Use c instead of _ as the local label
+                                       prefix
+  .LSFIRST / .MSFIRST                  Byte order for .WORD (default least
+                                       significant byte first)
+  .MODULE name                         Start a new scope for local labels
+  [label] .ORG expr / *=expr / $=expr  Set the location counter. The label
+                                       gets the new value
+  .PAGE / .NOPAGE                      Turn paging of the listing on or off
+  label .SET expr                      Give label a new value
+  .SYM ["file"] / .AVSYM ["file"]      Write a symbol file (AVSYM: Avocet
+                                       format)
+  [label] .TEXT "string"               The characters of the string
+  .TITLE "string"                      Title in the page header of the
+                                       listing
+  [label] .WORD expr [,...]            16 bit words. .DW is the same
+  #DEFINE name[(args)] [text]          Define a macro (see below)
+  #DEFCONT text                        Add text to the last macro
+  #IFDEF name / #IFNDEF name           Assemble the following lines if the
+                                       macro is (not) defined
+  #IF expr                             Assemble the following lines if expr
+                                       is not zero
+  #ELSE / #ENDIF                       Alternative block / end of a
+                                       conditional block
+  #INCLUDE "file"                      Assemble another source file here
+                                       (nested up to 8 levels)
+
+Strings
+
+Strings are written between double quotes. These escape sequences are
+recognized: \n line feed, \r carriage return, \b backspace, \t tab, \f form
+feed, \\ backslash, \" quote, \ooo octal value.
+
+Macros
+
+    #DEFINE  VAR1_LO   (VAR1 & 255)
+    #DEFINE  ADD(xx,yy) clc\ lda xx\ adc yy\ sta xx
+    #DEFCONT            \ rts
+
+Each occurrence of a macro name in the source is replaced by its text; the
+arguments are substituted. Up to 10 arguments are allowed. Macro names are
+case sensitive. Macros are not expanded inside strings or comments.
+
+Conditional assembly
+
+    #IFDEF   DEBUG
+            jsr  dump
+    #ELSE
+            nop
+    #ENDIF
+
+Lines that are skipped appear in the listing with a ~ after the address.
+
+Local labels
+
+Labels that start with the local label character (default _) only need to be
+unique within a module started with .MODULE. They are shown in the label
+table only with -la, as module._label.
+
+6502 AND 65C02 INSTRUCTIONS
+---------------------------
+
+Addressing modes
+
+  Syntax     Mode
+  ---------------
+  (none)     Implied
+  A          Accumulator
+  #expr      Immediate
+  expr       Zero page or absolute; relative for branches
+  expr,X     Zero page,X or absolute,X
+  expr,Y     Zero page,Y or absolute,Y
+  (expr,X)   Indexed indirect; JMP (abs,X) on the 65C02
+  (expr),Y   Indirect indexed
+  (expr)     JMP indirect; zero page indirect on the 65C02
+  zp,target  BBRn and BBSn: zero page address and branch target
+
+Zero page addressing cannot be requested explicitly: it is used when the
+operand value is below $100 and the instruction has a zero page form. When
+the operand refers to a label that is defined later in the source, absolute
+addressing is used. Define zero page labels before their first use to get
+zero page code.
+
+Parentheses around an operand mean indirection only if the instruction has
+an indirect mode. Otherwise they just group the expression, as in TASM.
+
+Instruction sets
+
+NMOS 6502 (always available): ADC AND ASL BCC BCS BEQ BIT BMI BNE BPL BRK
+BVC BVS CLC CLD CLI CLV CMP CPX CPY DEC DEX DEY EOR INC INX INY JMP JSR LDA
+LDX LDY LSR NOP ORA PHA PHP PLA PLP ROL ROR RTI RTS SBC SEC SED SEI STA STX
+STY TAX TAY TSX TXA TXS TYA
+
+65C02 (-x3): STZ, TRB, TSB, (zp) indirect for ADC AND CMP EOR LDA ORA SBC
+STA, BIT #imm, BIT zp,X, BIT abs,X, DEC A, INC A, JMP (abs,X), and also BRA,
+PHX, PHY, PLX, PLY, BBR0-7, BBS0-7, RMB0-7, SMB0-7.
+
+R65C00/21 (-x5): BRA, PHX, PHY, PLX, PLY, BBR0-7, BBS0-7, RMB0-7, SMB0-7 and
+MUL.
+
+OBJECT FILE FORMATS
+-------------------
+
+Object files are text files with CR LF line ends on every system. Records
+hold at most 24 bytes (change with -o). PTASM writes the records in address
+order; a new record starts after each gap. With -c all bytes from the lowest
+to the highest address used are written, unassigned bytes get the -f fill
+value (default 00).
+
+Intel hex (-g0, default)
+
+    :NNAAAA00HH...HHCC
+
+NN byte count, AAAA address, 00 record type, HH data bytes, CC checksum: the
+two's complement of the sum of all bytes in the record. Only data records
+and the end record are written, so the addresses are 16 bit. The last record
+is :00000001FF.
+
+    :181000000102030405060708090A0B0C0D0E0F101112131415161718AC
+    :02101800191AA3
+    :00000001FF
+
+MOS Technology paper tape (-m or -g1)
+
+    ;NNAAAAHH...HHCCCC
+
+NN byte count, AAAA address, HH data bytes, CCCC checksum: the 16 bit sum of
+the count, the two address bytes and the data bytes. The last record holds
+the number of data records and its checksum (the sum of the two count
+bytes):
+
+    ;1810000102030405060708090A0B0C0D0E0F1011121314151617180154
+    ;021018191A005D
+    ;0000020002
+
+This is the format the KIM-1, AIM 65 and other MOS loaders read.
+
+LISTING FILE FORMAT
+-------------------
+
+Each source line gives one listing line:
+
+    0005   1000 E6 40               inc   label1
+    0006+  1002 EE 00 10            inc   label3
+
+  - Line number in the current source file (4 digits)
+  - One + for each level of #INCLUDE
+  - Address (4 hex digits), followed by ~ if the line is skipped by
+    conditional assembly
+  - Up to four bytes of code; more bytes go on following lines
+  - The source line as written (after macro expansion with -e)
+
+Error messages are written before the line they belong to. The listing ends
+with the number of errors, then the label table (-l) and the hex table (-h)
+if requested.
+
+With paging (-p or .PAGE) every page starts with a form feed (except the
+first) and a header with the assembler name, source file, page number and
+title.
+
+Label table
+
+    Label        Value      Label        Value      Label        Value
+    ------------------      ------------------      ------------------
+    alabel        0234      loop          0262      zlabel        0056
+
+Labels are sorted alphabetically. The long form (-ll) gives one label per
+line with the full name.
+
+SYMBOL AND EXPORT FILES
+-----------------------
+
+The symbol file (-s or .SYM) has one line per label, sorted alphabetically:
+
+    label1         FFFE
+    label2         FFFF
+    label3         1000
+
+With .AVSYM the Avocet format is used:
+
+    AS     start          C:1000
+    AS     buffer         X:0080
+
+The export file lists the labels named in .EXPORT directives as equates,
+ready to be included in another assembly:
+
+    read_byte      .EQU   $1243
+    write_byte     .EQU   $12AF
+
+ERROR MESSAGES
+--------------
+
+Error messages have the form
+
+    file line nnnn: message (data)
+
+and appear on the console and in the listing. The messages are the same as
+in TASM32 where possible:
+
+  Message                                         Meaning
+  -------------------------------------------------------
+  Addressing mode needs 65C02 instructions (-x3)  This form of the
+                                                  instruction exists only on
+                                                  the 65C02
+  Binary operator where value expected            Two operators in a row
+  Division by zero                                Divisor or modulo operand
+                                                  is zero
+  Duplicate label                                 The label is defined twice
+  Imbalanced conditional.                         #ELSE or #ENDIF without
+                                                  #IF, or a file ends inside
+                                                  a conditional block
+  Instruction needs 65C02 instructions (-x3)      A 65C02 instruction
+                                                  without -x
+  Invalid number                                  A badly formed constant
+  Label not found                                 A label in an expression
+                                                  is not defined
+  Label too long                                  Labels are limited to 32
+                                                  characters
+  Label value misaligned                          A label has a different
+                                                  value in pass 2 than in
+                                                  pass 1 (phase error)
+  Macro expansion too long.                       The expanded line is
+                                                  longer than 255 characters
+  Max number of nested conditionals exceeded      More than 32 nested #IF
+                                                  levels
+  Maximum number of args exceeded                 More than 10 macro
+                                                  arguments
+  Missing right parenthesis                       Unbalanced parentheses
+  No END directive before EOF                     Warning only
+  No terminating quote                            A string or character
+                                                  constant is not closed
+  Range of argument exceeded.                     A zero page operand is
+                                                  $100 or more, or a count
+                                                  is out of range
+  Range of relative branch exceeded.              Branch target more than
+                                                  -128..+127 bytes away
+  Source file open error                          An #INCLUDE file cannot be
+                                                  opened
+  Unknown token                                   Unexpected characters in
+                                                  an expression
+  Unrecognized argument                           The operand does not fit
+                                                  any addressing mode of the
+                                                  instruction
+  Unrecognized directive                          Unknown directive after .
+                                                  or #
+  Unrecognized instruction                        Unknown mnemonic
+  Unused data in MS byte of argument.             Only with -a2: a byte
+                                                  operand has a non-zero
+                                                  high byte
+
+At the end PTASM prints ptasm: Number of errors = n.
+
+LIMITATIONS
+-----------
+
+  Maximum number of labels                                 15000
+  Maximum length of labels                                 32 characters
+  Address space                                            64 Kbytes
+  Maximum source line length (also after macro expansion)  255 characters
+  Maximum number of nested INCLUDEs                        8
+  Maximum number of nested conditionals                    32
+  Maximum number of macros                                 1000
+  Maximum number of macro arguments                        10
+  Maximum length of TITLE string                           79 characters
+
+Expressions have no operator precedence; use parentheses.
