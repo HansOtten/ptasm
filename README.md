@@ -39,6 +39,7 @@ See the full manual for details and the list of unsupported TASM32 features.
 
 | File | Contents |
 |------|----------|
+| `ptasm.exe` | Ready-built Windows (x86-64) executable |
 | `ptasm.pas` | Source code (build with `fpc`) |
 | `ptasm.lpr`, `ptasm.lpi`, `ptasm.res` | Lazarus project: source, project file, resources |
 | `ptasm.txt` | User manual (text) |

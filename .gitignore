@@ -1,6 +1,5 @@
 # Free Pascal / Lazarus build output
 /ptasm
-/ptasm.exe
 *.o
 *.ppu
 *.a
