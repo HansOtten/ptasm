@@ -24,7 +24,31 @@ the Windows resource file `ptasm.res`).
     ptasm -65 [-options ...] src_file [obj_file [lst_file [exp_file [sym_file]]]]
 
 Run without arguments for a summary of the options.
-
+```
+PTASM 6502/65C02 Assembler. Version 1.0
+Usage: ptasm -65 [-options ...] src_file [obj_file [lst_file [exp_file [sym_file]]]]
+Options:
+  -65      6502 instruction set (default). -t65c02 = -65 -x3
+  -a[mask] Assembly checks: 2=unused data in MS byte, 4=duplicate labels (default 4)
+  -c       Object file written as one contiguous block
+  -dname   Define a macro (-dname=value gives it a value)
+  -e       Show source lines after macro expansion
+  -fXX     Fill memory with byte XX (hex)
+  -g0      Intel hex object (default)
+  -g1      MOS Technology hex (paper tape) object, same as -m
+  -h       Hex table of the object code in the listing
+  -i       Ignore case in labels
+  -l[al]   Label table in the listing (a=all labels, l=long form)
+  -m       MOS Technology hex (paper tape) object
+  -oXX     Bytes per object record (hex, default 18 = 24 bytes)
+  -p[n]    Page the listing, n lines per page (default 60)
+  -q       Quiet: no listing file
+  -s       Write a symbol table file
+  -x[mask] Extended instructions: -x3 65C02, -x5 R65C00/21 MUL, -x = all
+  -y       Time the assembly
+Default files: src.obj, src.lst, src.exp, src.sym
+Environment:   TASMOPTS holds default options
+```
 ## Main differences from TASM32
 
 - `<` and `>` low/high byte operators (`LDA #<TABLE`, `LDA #>TABLE`).
