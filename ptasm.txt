@@ -1,7 +1,7 @@
 PTASM User Manual
 =================
 
-PTASM 6502/65C02 Assembler, version 1.0
+PTASM 6502/65C02 Assembler, version 1.1
 A portable replacement for TASM32 (the Telemark Assembler) for the 6502
 family, written in Pascal.
 
@@ -39,7 +39,7 @@ plain (non-object) Pascal and compiles with Free Pascal, so it runs on every
 system Free Pascal supports: Windows, Linux, macOS, the BSDs, Raspberry Pi
 and more.
 
-PTASM produces Intel hex or MOS Technology paper tape object files, a
+PTASM produces Intel hex, MOS Technology paper tape or binary object files, a
 listing file with an optional label table and hex table, a symbol file and
 an export file.
 
@@ -52,6 +52,7 @@ Additions and fixes
     selects the low or high byte of the value of the whole expression: LDA
     #<TABLE, LDA #>TABLE, .BYTE <MSG, >MSG. TASM32 only knows < and > as
     comparisons. See Expressions.
+  - ';' is allowed in expressions.
   - MOS paper tape end record. The last record holds the number of data
     records and its checksum, ;00nnnncccc, as the KIM-1 and other MOS
     loaders expect. TASM32 writes only ;00.
@@ -82,8 +83,7 @@ Additions and fixes
 Not supported
 
   - Other processors: only the 6502 table (-65) is available.
-  - Binary, Motorola hex and Intel word address object formats (-b, -g2,
-    -g3, -g4).
+  - Motorola hex and Intel word address object formats (-g2, -g4).
   - The ADDINSTR directive (PTASM has no instruction tables).
   - The TASMTABS and TASMERRFORMAT environment variables.
   - The assembly checks -a1 (illegal indirection) and -a8 (non-unary
@@ -115,6 +115,7 @@ The table option -65 may be omitted; the 6502 table is the default.
   -t65c02            6502 instruction set with the 65C02 extensions (as -65
                      -x3)
   -a[mask]           Assembly checks, mask in hex (see below)
+  -b                 Binary object file (same as -g3)
   -c                 Object file written as one contiguous block
   -dname[=value]     Define a macro, as #DEFINE name value
   -e                 Show source lines after macro expansion in the listing
@@ -122,6 +123,7 @@ The table option -65 may be omitted; the 6502 table is the default.
                      assembly
   -g0                Intel hex object file (default)
   -g1                MOS Technology paper tape object file (same as -m)
+  -g3                Binary object file (same as -b)
   -h                 Hex table of the object code at the end of the listing
   -i                 Ignore case in labels
   -l[al]             Label table in the listing; a = all labels including
@@ -139,7 +141,7 @@ Default file names are made from the source file name with the extension
 changed to .obj, .lst, .exp and .sym. If the source extension is in upper
 case (TEST.ASM) the generated extensions are upper case too.
 
-When both -m and -g are given, the last one counts.
+When more than one of -b, -m and -g are given, the last one counts.
 
 -a Assembly checks
 
@@ -168,6 +170,7 @@ Examples
     ptasm -65 monitor.asm                 Intel hex monitor.obj, listing monitor.lst
     ptasm -65 -m -l kim.asm kim.pap       MOS paper tape kim.pap, label table in kim.lst
     ptasm -65 -x3 -s -c -fFF rom.asm      65C02, symbol file, contiguous block filled with FF
+    ptasm -65 -b -fFF rom.asm rom.bin     binary rom.bin, gaps filled with FF
 
 ENVIRONMENT VARIABLES
 ---------------------
@@ -417,8 +420,8 @@ MUL.
 OBJECT FILE FORMATS
 -------------------
 
-Object files are text files with CR LF line ends on every system. Records
-hold at most 24 bytes (change with -o). PTASM writes the records in address
+Intel hex and MOS Technology object files are text files with CR LF line
+ends on every system. Records hold at most 24 bytes (change with -o). PTASM writes the records in address
 order; a new record starts after each gap. With -c all bytes from the lowest
 to the highest address used are written, unassigned bytes get the -f fill
 value (default 00).
@@ -450,6 +453,15 @@ bytes):
     ;0000020002
 
 This is the format the KIM-1, AIM 65 and other MOS loaders read.
+
+Binary (-b or -g3)
+
+The memory image from the lowest to the highest address used, byte for byte,
+without an address or checksum. Gaps between the code are filled with the -f
+value (default 00), so use -fFF for an EPROM image. The object file gets the
+default extension .obj unless a name is given:
+
+    ptasm -65 -b -fFF monitor.asm monitor.bin
 
 LISTING FILE FORMAT
 -------------------

@@ -1,5 +1,34 @@
 program ptasm;
 
+{
+  V1.1 Last update Hans Otten November 2026
+
+  MIT License
+
+  Copyright (c) 2019, 2026 Hans Otten
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+}
+
+
+
+
 { PTASM - a two pass 6502/65C02 cross assembler.
 
   Source and command line compatible with TASM32 (the Telemark Assembler,
@@ -7,8 +36,8 @@ program ptasm;
   built in, no TASM65.TAB is needed.  Written in plain (non-object) Pascal
   for Free Pascal, so it runs wherever FPC runs.
 
-  Object output: Intel hex (-g0, default) or MOS Technology paper tape
-  (-m / -g1).  Listing, label table, symbol file and export file as TASM.
+  Object output: Intel hex (-g0, default), MOS Technology paper tape
+  (-m / -g1) or binary (-b / -g3).  Listing, label table, symbol file and export file as TASM.
 
   Changes with respect to TASM32:
   - '<' and '>' at the start of an expression select the low and high
@@ -29,7 +58,7 @@ program ptasm;
 uses dos;
 
 const
-  Version    = '1.0';
+  Version    = '1.1';
   MaxSym     = 15000;
   SymHashSz  = 4096;
   MaxMac     = 1000;
@@ -105,7 +134,7 @@ var
   { options }
   srcName, objName, lstName, expName, symName : string;
   symNameSet  : boolean;
-  objFormat   : longint;    { 0 Intel hex, 1 MOS Technology }
+  objFormat   : longint;    { 0 Intel hex, 1 MOS Technology, 3 binary }
   recLen      : longint;
   fillVal     : longint;
   amask       : longint;
@@ -2353,9 +2382,41 @@ begin
   inc(recCount)
 end;
 
+procedure writeBinary;
+var f: file; a, lo, hi, n, i: longint; buf: array[0..1023] of byte;
+begin
+  assign(f, objName);
+  {$I-} rewrite(f, 1); {$I+}
+  if ioresult <> 0 then
+  begin
+    writeln('ptasm: Object file open error: ', objName);
+    exitCode := 3;
+    exit
+  end;
+  lo := 0;
+  while (lo <= 65535) and not used[lo] do inc(lo);
+  hi := 65535;
+  while (hi >= 0) and not used[hi] do dec(hi);
+  a := lo;
+  while a <= hi do
+  begin
+    n := hi - a + 1;
+    if n > 1024 then n := 1024;
+    for i := 0 to n - 1 do buf[i] := image[a + i];
+    blockwrite(f, buf, n);
+    a := a + n
+  end;
+  close(f)
+end;
+
 procedure writeObject;
 var a, n, lo, hi: longint;
 begin
+  if objFormat = 3 then
+  begin
+    writeBinary;
+    exit
+  end;
   if not createFile(objF, objName) then
   begin
     writeln('ptasm: Object file open error: ', objName);
@@ -2407,12 +2468,14 @@ begin
   writeln('Options:');
   writeln('  -65      6502 instruction set (default). -t65c02 = -65 -x3');
   writeln('  -a[mask] Assembly checks: 2=unused data in MS byte, 4=duplicate labels (default 4)');
+  writeln('  -b       Binary object, one contiguous block (same as -g3)');
   writeln('  -c       Object file written as one contiguous block');
   writeln('  -dname   Define a macro (-dname=value gives it a value)');
   writeln('  -e       Show source lines after macro expansion');
   writeln('  -fXX     Fill memory with byte XX (hex)');
   writeln('  -g0      Intel hex object (default)');
   writeln('  -g1      MOS Technology hex (paper tape) object, same as -m');
+  writeln('  -g3      Binary object, same as -b');
   writeln('  -h       Hex table of the object code in the listing');
   writeln('  -i       Ignore case in labels');
   writeln('  -l[al]   Label table in the listing (a=all labels, l=long form)');
@@ -2452,14 +2515,15 @@ begin
     case c of
       'T': setTable(rest, a);
       'A': if rest = '' then amask := 15 else amask := hexOpt(rest, a);
-      'B': fatal('Binary object (-b) is not supported; use -g0 (Intel hex) or -g1 (MOS)', 4);
+      'B': objFormat := 3;
       'C': contiguous := true;
       'D': addCmdMacro(rest);
       'E': expandOpt := true;
       'F': fillVal := hexOpt(rest, a) and $FF;
       'G': if rest = '0' then objFormat := 0
            else if rest = '1' then objFormat := 1
-           else fatal('Invalid Object file type: ' + a + ' (use -g0 Intel hex or -g1 MOS)', 4);
+           else if rest = '3' then objFormat := 3
+           else fatal('Invalid Object file type: ' + a + ' (use -g0 Intel hex, -g1 MOS or -g3 binary)', 4);
       'H': hexTable := true;
       'I': ignoreCase := true;
       'L': begin

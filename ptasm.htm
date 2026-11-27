@@ -17,7 +17,7 @@ code { font-family: Consolas, monospace; }
 <body>
 
 <h1>PTASM User Manual</h1>
-<p>PTASM 6502/65C02 Assembler, version 1.0<br>
+<p>PTASM 6502/65C02 Assembler, version 1.1<br>
 A portable replacement for TASM32 (the Telemark Assembler) for the 6502 family, written in Pascal.</p>
 
 <h2>Contents</h2>
@@ -49,7 +49,7 @@ time. PTASM is one small standalone program with the 6502 and 65C02 instruction
 sets built in, so no TASM65.TAB file is needed. It is written in plain
 (non-object) Pascal and compiles with Free Pascal, so it runs on every system
 Free Pascal supports: Windows, Linux, macOS, the BSDs, Raspberry Pi and more.</p>
-<p>PTASM produces Intel hex or MOS Technology paper tape object files, a
+<p>PTASM produces Intel hex, MOS Technology paper tape or binary object files, a
 listing file with an optional label table and hex table, a symbol file and an
 export file.</p>
 
@@ -93,8 +93,8 @@ enabled (same as <code>-65 -x3</code>).</li>
 <h3>Not supported</h3>
 <ul>
 <li>Other processors: only the 6502 table (<code>-65</code>) is available.</li>
-<li>Binary, Motorola hex and Intel word address object formats
-(<code>-b</code>, <code>-g2</code>, <code>-g3</code>, <code>-g4</code>).</li>
+<li>Motorola hex and Intel word address object formats
+(<code>-g2</code>, <code>-g4</code>).</li>
 <li>The <code>ADDINSTR</code> directive (PTASM has no instruction tables).</li>
 <li>The <code>TASMTABS</code> and <code>TASMERRFORMAT</code> environment
 variables.</li>
@@ -121,12 +121,14 @@ default.</p>
 <tr><td>-65, -t65, -t6502</td><td>6502 instruction set (default)</td></tr>
 <tr><td>-t65c02</td><td>6502 instruction set with the 65C02 extensions (as -65 -x3)</td></tr>
 <tr><td>-a[mask]</td><td>Assembly checks, mask in hex (see below)</td></tr>
+<tr><td>-b</td><td>Binary object file (same as -g3)</td></tr>
 <tr><td>-c</td><td>Object file written as one contiguous block</td></tr>
 <tr><td>-dname[=value]</td><td>Define a macro, as #DEFINE name value</td></tr>
 <tr><td>-e</td><td>Show source lines after macro expansion in the listing</td></tr>
 <tr><td>-fXX</td><td>Fill the memory image with byte XX (hex) before assembly</td></tr>
 <tr><td>-g0</td><td>Intel hex object file (default)</td></tr>
 <tr><td>-g1</td><td>MOS Technology paper tape object file (same as -m)</td></tr>
+<tr><td>-g3</td><td>Binary object file (same as -b)</td></tr>
 <tr><td>-h</td><td>Hex table of the object code at the end of the listing</td></tr>
 <tr><td>-i</td><td>Ignore case in labels</td></tr>
 <tr><td>-l[al]</td><td>Label table in the listing; a = all labels including local ones, l = long form</td></tr>
@@ -142,7 +144,7 @@ default.</p>
 changed to <code>.obj</code>, <code>.lst</code>, <code>.exp</code> and
 <code>.sym</code>. If the source extension is in upper case (<code>TEST.ASM</code>)
 the generated extensions are upper case too.</p>
-<p>When both -m and -g are given, the last one counts.</p>
+<p>When more than one of -b, -m and -g are given, the last one counts.</p>
 
 <h3>-a Assembly checks</h3>
 <table>
@@ -166,7 +168,8 @@ converted to 8 bits silently.</p>
 <h3>Examples</h3>
 <pre>ptasm -65 monitor.asm                 Intel hex monitor.obj, listing monitor.lst
 ptasm -65 -m -l kim.asm kim.pap       MOS paper tape kim.pap, label table in kim.lst
-ptasm -65 -x3 -s -c -fFF rom.asm      65C02, symbol file, contiguous block filled with FF</pre>
+ptasm -65 -x3 -s -c -fFF rom.asm      65C02, symbol file, contiguous block filled with FF
+ptasm -65 -b -fFF rom.asm rom.bin     binary rom.bin, gaps filled with FF</pre>
 
 <h2>Environment variables</h2>
 <p><b>TASMOPTS</b> holds options that are used every time, before the options
@@ -351,7 +354,7 @@ PHY, PLX, PLY, BBR0-7, BBS0-7, RMB0-7, SMB0-7.</p>
 MUL.</p>
 
 <h2>Object file formats</h2>
-<p>Object files are text files with CR LF line ends on every system. Records
+<p>Intel hex and MOS Technology object files are text files with CR LF line ends on every system. Records
 hold at most 24 bytes (change with <code>-o</code>). PTASM writes the records in
 address order; a new record starts after each gap. With <code>-c</code> all bytes
 from the lowest to the highest address used are written, unassigned bytes get
@@ -374,6 +377,13 @@ number of data records and its checksum (the sum of the two count bytes):</p>
 ;021018191A005D
 ;0000020002</pre>
 <p>This is the format the KIM-1, AIM 65 and other MOS loaders read.</p>
+<h3>Binary (-b or -g3)</h3>
+<p>The memory image from the lowest to the highest address used, byte for byte,
+without an address or checksum. Gaps between the code are filled with the
+<code>-f</code> value (default 00), so use <code>-fFF</code> for an EPROM image.
+The object file gets the default extension <code>.obj</code> unless a name is
+given:</p>
+<pre>ptasm -65 -b -fFF monitor.asm monitor.bin</pre>
 
 <h2>Listing file format</h2>
 <p>Each source line gives one listing line:</p>

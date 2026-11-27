@@ -22,15 +22,13 @@ ptest.asm line 0013: Unrecognized instruction: (FOUTJE)
 0021   0204 A9 03               lda     #>table+1       ; A9 03   high byte of (table+1)
 0022   0206 85 10               sta     zp              ; 85 10   zero page
 0023   0208 8D F0 00            sta     fwd             ; 8D F0 00 forward reference stays absolute
-ptest.asm line 0024: Instruction needs 65C02 instructions (-x3): (STZ)
-0024   020B                     stz     zp              ; 64 10   65C02
-ptest.asm line 0025: Instruction needs 65C02 instructions (-x3): (BRA)
-0025   020B                     bra     *               ; 80 FE   65C02
-0026   020B A5 10               lda     (zp)            ; B2 10   65C02 (zp) indirect
-0027   020D 60                  rts                     ; 60
-0028   020E             
-0029   020E             fwd     .equ    $F0
-0030   020E             
+0024   020B 64 10               stz     zp              ; 64 10   65C02
+0025   020D 80 FE               bra     *               ; 80 FE   65C02
+0026   020F B2 10               lda     (zp)            ; B2 10   65C02 (zp) indirect
+0027   0211 60                  rts                     ; 60
+0028   0212             
+0029   0212             fwd     .equ    $F0
+0030   0212             
 0031   0310                     .org    $0310
 0032   0310 34 12       table   .byte   <VAL, >VAL      ; 34 12
 0033   0312 34 12               .word   VAL             ; 34 12
@@ -38,4 +36,4 @@ ptest.asm line 0025: Instruction needs 65C02 instructions (-x3): (BRA)
 0035   0317 3B          		.byte   ';'
 0036   0318                     .end
 
-ptasm: Number of errors = 3
+ptasm: Number of errors = 1
